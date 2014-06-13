@@ -24,7 +24,7 @@ IdMix = idmix()
 
 
 def tsmix(created_key='ts_created', updated_key='ts_updated', defer=True,
-          timefunc=_timefunc):
+          timefunc=_timefunc, Type=sqlalchemy.types.Integer):
     class TsMix(object):
         """Base Timestamp model mixin.
         `created_key` - Column name for created timestamp.
@@ -34,11 +34,11 @@ def tsmix(created_key='ts_created', updated_key='ts_updated', defer=True,
         pass
 
     def created_col(cls):
-        return sqlalchemy.Column(sqlalchemy.types.Integer, default=timefunc,
+        return sqlalchemy.Column(Type, default=timefunc,
                                  nullable=False)
 
     def updated_col(cls):
-        return sqlalchemy.Column(sqlalchemy.types.Integer, default=timefunc,
+        return sqlalchemy.Column(Type, default=timefunc,
                                  onupdate=timefunc, nullable=False)
 
     if defer is true:
@@ -52,31 +52,29 @@ def tsmix(created_key='ts_created', updated_key='ts_updated', defer=True,
 TsMix = tsmix()
 
 
-def flagmix(flag_attr='a_flag', default=True, flag=True, inverse=False,
-            col_name=None):
+def flagmix(flag_attr='a_flag', default=True, col_name=None,
+            invert_filter=False, Type=sqlalchemy.types.Boolean):
     """Allows for the arbitrary creation of flag (boolean) attributes.
     Queries are automatically filtered based on the flag when coupled
-    with codalib.alchemy.unique_constructor or
-    codalib.alchemy.query_filters.
+    with .unique_constructor, .query_filters, or .rebase metaclass.
 
-    `flagattr` - the name of the flag to be used.
-        This is also doubles as the table column name unless `columnname` is set.
-        Two methods are added based on this name:
+    `flag_attr` - the name of the flag attribute.
+        This is also doubles as the table column name unless
+        `col_name` is set. Two methods are added based on this name:
             flag_[flagattr] - Sets the flag. (alias of FlagMix._flag)
             unflag_[flagattr] - Unsets the flag. (alias of FlagMix._unflag)
 
     `default` - This is the default value set upon row insert.
 
-    `flag` - This is the enabled boolean state.
+    `col_name` - This overrides `flag_attr` as the column name.
 
-    `inverse` - This inverses the set state of FlagMix._flag() and FlagMix._unflag() 
-
-    `columnname` - This overrides `flagattr`"""
-    # Removed the confusion of `inverse`
-    
+    `invert_filter` - This inverts the filter from expecting a True
+        value to Fale.
+    """
+    # Removed the confusion of `inverse`. Replaced with `invert_filter`
+    # Removed col_name.
     class FlagMix(object):
         """ """
-
         @property
         def _flag(self):
             return getattr(self, flag_attr)
@@ -87,18 +85,18 @@ def flagmix(flag_attr='a_flag', default=True, flag=True, inverse=False,
             setattr(self, flag_attr, value)
 
         def _set_flag(self):
-            self._flag = not flag if inverse else flag
+            self._flag = True
 
         def _unset_flag(self):
-            self._flag = flag if inverse else not flag
+            self._flag = False
 
         @property
         def __filter__(self):
-            return self._flag == flag
+            return self._flag is False if invert_filter else True
 
     def flag_col():
-        return Column(sqlalchemy.types.Boolean, default=default,
-                      nullable=False)
+        return sqlalchemy.Column(sqlalchemy.types.Boolean, default=default,
+                                 nullable=False)
 
     setattr(FlagMix, '_'.join(['set', flag_attr]), FlagMix._set_flag)
     setattr(FlagMix, '_'.join(['unset', flag_attr]), FlagMix._unset_flag)
@@ -108,4 +106,4 @@ def flagmix(flag_attr='a_flag', default=True, flag=True, inverse=False,
 
 FlagMix = flagmix()
 ActiveMix = flagmix('active')
-DeletableMix = flagmix('deleted', default=False, flag=False, inverse=True)
+DeletableMix = flagmix('deleted', default=False, invert_filter=True)
