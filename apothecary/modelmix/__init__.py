@@ -7,7 +7,7 @@ import sqlalchemy.types
 import sqlalchemy.orm
 
 
-__all__ = (idmix, IdMix, tsmix, TsMix)
+__all__ = (id_mix, IdMix, ts_mix, TsMix)
 
 
 def _timefunc():
@@ -16,7 +16,7 @@ def _timefunc():
     return int(time.time())
 
 
-def idmix(id_key='id'):
+def id_mix(id_key='id'):
     """
     """
     class IdMix(object):
@@ -24,10 +24,10 @@ def idmix(id_key='id'):
         pass
     setattr(IdMix, id_key, Column(Integer, primary_key=True))
     return IdMix
-IdMix = idmix()
+IdMix = id_mix()
 
 
-def tsmix(ts_col, oncreate=False, onupdate=False, defer=False,
+def ts_mix(ts_col, oncreate=False, onupdate=False, defer=False,
           timefunc=_timefunc, Type=sqlalchemy.types.Integer):
     """
     `ts_col` - Column name for created timestamp.
@@ -60,11 +60,11 @@ def tsmix(ts_col, oncreate=False, onupdate=False, defer=False,
         # Eager (?) loading of column.
         setattr(TsMix, ts_col, col())
     return TsMix
-TsUpdatedMix = tsmix('ts_updated', onupdate=True)
-TsCreatedMix = tsmix('ts_created', oncreate=True)
+TsUpdatedMix = ts_mix('ts_updated', onupdate=True)
+TsCreatedMix = ts_mix('ts_created', oncreate=True)
 
 
-def flagmix(flag_col, default=True, invert_filter=False,
+def flag_mix(flag_col, default=True, invert_filter=False,
             Type=sqlalchemy.types.Boolean):
     """Allows for the arbitrary creation of flag (boolean) attributes.
     Queries are automatically filtered based on the flag when coupled
@@ -115,14 +115,14 @@ def flagmix(flag_col, default=True, invert_filter=False,
     setattr(FlagMix, flag_col, flag_col())
 
     return FlagMix
-FlagMix = flagmix()
-ActiveMix = flagmix('active')
-DeletableMix = flagmix('deleted', default=False, invert_filter=True)
+FlagMix = flag_mix()
+ActiveMix = flag_mix('active')
+DeletableMix = flag_mix('deleted', default=False, invert_filter=True)
 
 
 def flagtsmix(flag_col, ts_col, default_flag=False, timefunc=_timefunc):
-    FlagMix = flagmix(flagcol, default=False)
-    TsMix = tsmix(ts_col)
+    FlagMix = flag_mix(flagcol, default=False)
+    TsMix = ts_mix(ts_col)
 
     class FlagTsMix(FlagMix, TsMix):
         """
