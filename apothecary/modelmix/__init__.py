@@ -66,8 +66,6 @@ def flagmix(flag_attr='a_flag', default=True, col_name=None,
 
     `default` - This is the default value set upon row insert.
 
-    `col_name` - This overrides `flag_attr` as the column name.
-
     `invert_filter` - This inverts the filter from expecting a True
         value to Fale.
     """
@@ -100,7 +98,7 @@ def flagmix(flag_attr='a_flag', default=True, col_name=None,
 
     setattr(FlagMix, '_'.join(['set', flag_attr]), FlagMix._set_flag)
     setattr(FlagMix, '_'.join(['unset', flag_attr]), FlagMix._unset_flag)
-    setattr(FlagMix, col_name or flag_attr, flag_col())
+    setattr(FlagMix, flag_attr, flag_col())
 
     return FlagMix
 
