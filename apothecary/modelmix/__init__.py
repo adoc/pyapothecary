@@ -1,13 +1,16 @@
+"""SQLAlchemy Model Mixins
+"""
 
-from sqlalchemy.types import Boolean, Integer, String, Unicode, DateTime
-
+import os
 import time
+import base64
 import sqlalchemy
 import sqlalchemy.types
 import sqlalchemy.orm
+import sqlalchemy.ext.hybrid
 
 
-__all__ = (id_mix, IdMix, ts_mix, TsMix)
+__all__ = ("id_mix", "IdMix", "ts_mix")
 
 
 def _timefunc():
@@ -16,13 +19,22 @@ def _timefunc():
     return int(time.time())
 
 
+def _tokenfunc(length):
+    # 2.7 here. Put 3.0+ handling in another func.
+    return base64.b64encode(os.urandom(length*2)).encode()[:length]
+
+
 def id_mix(id_key='id'):
     """
     """
     class IdMix(object):
         """Integer primary key model mixin."""
         pass
-    setattr(IdMix, id_key, Column(Integer, primary_key=True))
+    def col(**kwa):
+        kwa['primary_key'] = True
+        return sqlalchemy.Column(sqlalchemy.types.Integer, **kwa)
+
+    setattr(IdMix, id_key, col())
     return IdMix
 IdMix = id_mix()
 
@@ -38,10 +50,21 @@ def ts_mix(ts_col, oncreate=False, onupdate=False, defer=False,
     `timefunc` - 
     `Type` -
     """
+    assert isinstance(ts_col, basestring), "`ts_col` attribute must be a string."
+
     class TsMix(object):
         """Timestamp Model Mixin.
         """
-        pass
+        @sqlalchemy.ext.hybrid.hybrid_property
+        def _ts(self):
+            return getattr(self, ts_col)
+
+        @_ts.setter
+        def _ts(self, value):
+            setattr(self, ts_col, value)
+
+        def _set_now(self):
+            self._ts = timefunc()
 
     def col(**col_kwa):
         # Create the Column object with various options.
@@ -53,7 +76,9 @@ def ts_mix(ts_col, oncreate=False, onupdate=False, defer=False,
         col_kwa['nullable'] = not(oncreate or onupdate)
         return sqlalchemy.Column(Type, **col_kwa)
 
-    if defer is true:
+    setattr(TsMix, '_'.join([ts_col, 'set_now']), TsMix._set_now)
+
+    if defer is True:
         # Defer loading of column.
         setattr(TsMix, ts_col, sqlalchemy.orm.defered(col()))
     else:
@@ -87,7 +112,7 @@ def flag_mix(flag_col, default=True, invert_filter=False,
     # Removed col_name.
     class FlagMix(object):
         """ """
-        @hybrid_property
+        @sqlalchemy.ext.hybrid.hybrid_property
         def _flag(self):
             return getattr(self, flag_col)
 
@@ -106,31 +131,30 @@ def flag_mix(flag_col, default=True, invert_filter=False,
         def __filter__(self):
             return self._flag is False if invert_filter else True
 
-    def flag_col():
+    def col():
         return sqlalchemy.Column(sqlalchemy.types.Boolean, default=default,
                                  nullable=False)
 
     setattr(FlagMix, '_'.join(['set', flag_col]), FlagMix._set_flag)
     setattr(FlagMix, '_'.join(['unset', flag_col]), FlagMix._unset_flag)
-    setattr(FlagMix, flag_col, flag_col())
+    setattr(FlagMix, flag_col, col())
 
     return FlagMix
-FlagMix = flag_mix()
+FlagMix = flag_mix('myflag')
 ActiveMix = flag_mix('active')
 DeletableMix = flag_mix('deleted', default=False, invert_filter=True)
 
 
-def flagtsmix(flag_col, ts_col, default_flag=False, timefunc=_timefunc):
-    FlagMix = flag_mix(flagcol, default=False)
-    TsMix = ts_mix(ts_col)
+def flag_ts_mix(flag_col, ts_col, default_flag=False, timefunc=_timefunc):
+    FlagMix = flag_mix(flag_col, default=default_flag)
+    TsMix = ts_mix(ts_col, timefunc=timefunc, oncreate=default_flag is True)
 
     class FlagTsMix(FlagMix, TsMix):
         """
         """
-        # Might be needed if setter decorator isn't available in this scope.
-        #@hybrid_property
-        #def _flag(self):
-        #    return FlagMix._flag(self)
+        @sqlalchemy.ext.hybrid.hybrid_property
+        def _flag(self):
+            return FlagMix._flag(self)
 
         @_flag.setter
         def _flag(self, value):
@@ -151,13 +175,17 @@ def record_token_mix(token_col, length=6, oncreate=False, onupdate=False,
                      Type=sqlalchemy.types.String):
     """
     """
+    def gentoken():
+        # Closure to pass to SQLA events.
+        return tokenfunc(length)
+
     if length < 6:
         log.warning("SecMix with a length less than 6 is not recomended.")
 
     class RecordTokenMix(object):
         """
         """
-        @hybrid_property
+        @sqlalchemy.ext.hybrid.hybrid_property
         def _token(self):
             return getattr(self, token_col)
 
@@ -169,18 +197,18 @@ def record_token_mix(token_col, length=6, oncreate=False, onupdate=False,
         def revoke_token(self):
             """
             """
-            self._token = tokenfunc()
+            self._token = gentoken()
 
     def col(**kwa):
         # Create the Column object with various options.
         if oncreate is True:
-            col_kwa['default'] = tokenfunc
+            kwa['default'] = gentoken
         if onupdate is True:
-            col_kwa['default'] = tokenfunc #??
-            col_kwa['onupdate'] = tokenfunc
-        col_kwa['nullable'] = not(oncreate or onupdate)
-        col_kwa['index'] = index
-        return sqlalchemy.Column(Type(length), **col_kwa)
+            kwa['default'] = gentoken #??
+            kwa['onupdate'] = gentoken
+        kwa['nullable'] = not(oncreate or onupdate)
+        kwa['index'] = index
+        return sqlalchemy.Column(Type(length), **kwa)
 
     setattr(RecordTokenMix, token_col, col())
     return RecordTokenMix
