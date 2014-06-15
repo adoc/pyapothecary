@@ -42,9 +42,18 @@ class RecordTokenMixModel(Base, apothecary.modelmix.record_token_mix('token')):
     id = sqlalchemy.Column(sqlalchemy.types.Integer, primary_key=True)
 
 
+class SequenceMixModel(Base, apothecary.modelmix.sequence_mix('sequence')):
+    __tablename__ = "test_sequence_mix"
+    id = sqlalchemy.Column(sqlalchemy.types.Integer, primary_key=True)
+
+
+class LookupMixModel(Base, apothecary.modelmix.lookup_mix()):
+    __tablename__ = "test_lookup_mix"
+    id = sqlalchemy.Column(sqlalchemy.types.Integer, primary_key=True)
+
+
 # Tests
 # =====
-
 class TestModelMix(unittest.TestCase):
     # Much more extensive tests needed to test other constructions and
     #   functions available.
@@ -127,3 +136,32 @@ class TestModelMix(unittest.TestCase):
         self.assertIs(token_obj, queried_token_obj)
         self.assertIsInstance(queried_token_obj.token, basestring)
         self.assertEqual(len(queried_token_obj.token), 6)
+
+    def test_sequence_mix(self):
+        seq_obj = SequenceMixModel()
+        self.session.add(seq_obj)
+        self.session.commit()
+
+        queried_seq_obj = self.session.query(SequenceMixModel).first()
+        self.assertIs(seq_obj, queried_seq_obj)
+        self.assertEqual(queried_seq_obj.sequence, 0)
+
+        queried_seq_obj._sequence_inc()
+        self.session.add(queried_seq_obj)
+        self.session.commit()
+
+        queried_seq_obj = self.session.query(SequenceMixModel).first()
+        self.assertIs(seq_obj, queried_seq_obj)
+        self.assertEqual(seq_obj.sequence, 1)
+
+    def test_lookup_mix(self):
+        lookup_obj = LookupMixModel()
+        lookup_obj.key = u"test"
+        lookup_obj.value = u"This is a test."
+        self.session.add(lookup_obj)
+        self.session.commit()
+
+        queried_lookup_obj = self.session.query(LookupMixModel).first()
+        self.assertIs(lookup_obj, queried_lookup_obj)
+        self.assertEqual(queried_lookup_obj.key, u"test")
+        self.assertEqual(queried_lookup_obj.value, u"This is a test.")

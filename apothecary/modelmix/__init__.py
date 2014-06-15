@@ -140,7 +140,6 @@ def flag_mix(flag_col, default=True, invert_filter=False,
     setattr(FlagMix, flag_col, col())
 
     return FlagMix
-FlagMix = flag_mix('myflag')
 ActiveMix = flag_mix('active')
 DeletableMix = flag_mix('deleted', default=False, invert_filter=True)
 
@@ -212,3 +211,66 @@ def record_token_mix(token_col, length=6, oncreate=False, onupdate=False,
 
     setattr(RecordTokenMix, token_col, col())
     return RecordTokenMix
+
+
+def sequence_mix(sequence_col, default=0, index=True):
+    class SequenceMix(object):
+        """Base Sequence mixin class """
+        
+        @sqlalchemy.ext.hybrid.hybrid_property
+        def _sequence(self):
+            return getattr(self, sequence_col)
+
+        @_sequence.setter
+        def _sequence(self, value):
+            assert isinstance(value, int), "`value` must be an integer."
+            setattr(self, sequence_col, value)
+
+        def _sequence_inc(self):
+            self._sequence += 1
+
+        def _sequence_dec(self):
+            self._sequence -= 1
+
+    def col(**kwa):
+        return sqlalchemy.Column(sqlalchemy.types.Integer, index=index,
+                                 nullable=True, default=default)
+
+    setattr(SequenceMix, sequence_col, col())
+    return SequenceMix
+SequenceMix = sequence_mix('sequence')
+
+
+def lookup_mix(key_col='key', value_col='desc', ext_col=None,
+               index_name=True, key_len=32, value_len=160, ext_len=1024):
+    """Provides a simple 'key', 'value', and optionally 'extended'
+    columns. While resembling a key/value store, there are better tools
+    for that.
+    'key' is always required and indexed by default.
+    'value' and 'extended value' expect Unicode and are
+        nullable.
+    """
+    class LookupMix(object):
+        """Base Simple Lookup model"""
+        pass
+
+    setattr(LookupMix, key_col,
+                sqlalchemy.Column(sqlalchemy.types.String(length=key_len),
+                                  unique=index_name, index=index_name,
+                                  nullable=False))
+    setattr(LookupMix, value_col,
+                sqlalchemy.Column(sqlalchemy.types.Unicode(length=value_len),
+                                  nullable=True))
+    if ext_col is not None:
+        setattr(LookupMix, ext_col,
+                    sqlalchemy.Column(sqlalchemy.types.Unicode(length=ext_len),
+                                      nullable=True))
+    return LookupMix
+
+LookupMix = lookup_mix()
+LookupMixExt = lookup_mix(ext_col='ext')
+
+
+class LookupMix(IdMix, LookupMix, DeletableMix, TsMix):
+    """Provides a base class for Lookup tables."""
+    pass
