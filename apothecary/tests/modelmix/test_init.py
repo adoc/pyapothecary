@@ -1,16 +1,15 @@
 import unittest
 import sqlalchemy
 import sqlalchemy.types
-import sqlalchemy.orm
 import sqlalchemy.ext.declarative
 import apothecary.modelmix
 
+from apothecary.tests import SqlaTestCase
 
+# Multiple bases to separate test schema.
 Base = sqlalchemy.ext.declarative.declarative_base()
 
 
-# Test Models
-# ===========
 class IdModel(Base, apothecary.modelmix.id_mix()):
     __tablename__ = "test_id_mix"
 
@@ -54,22 +53,10 @@ class LookupMixModel(Base, apothecary.modelmix.lookup_mix()):
 
 # Tests
 # =====
-class TestModelMix(unittest.TestCase):
+class TestModelMix(SqlaTestCase):
+    __base__ = Base
     # Much more extensive tests needed to test other constructions and
     #   functions available.
-    def __init__(self, *args):
-        unittest.TestCase.__init__(self, *args)
-        self.engine = sqlalchemy.create_engine("sqlite:///tests.db")
-        self.session = sqlalchemy.orm.scoped_session(
-                            sqlalchemy.orm.sessionmaker(bind=self.engine))
-
-    def setUp(self):
-        Base.metadata.create_all(bind=self.engine)
-
-    def tearDown(self):
-        self.session.remove()
-        Base.metadata.drop_all(bind=self.engine, checkfirst=False)
-
     def test__timefunc(self):
         ts_now = apothecary.modelmix._timefunc()
         self.assertIsInstance(ts_now, int)

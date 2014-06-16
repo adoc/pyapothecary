@@ -27,9 +27,11 @@ def _tokenfunc(length):
 def id_mix(id_key='id'):
     """
     """
+
     class IdMix(object):
         """Integer primary key model mixin."""
         pass
+
     def col(**kwa):
         kwa['primary_key'] = True
         return sqlalchemy.Column(sqlalchemy.types.Integer, **kwa)
@@ -271,6 +273,6 @@ LookupMix = lookup_mix()
 LookupMixExt = lookup_mix(ext_col='ext')
 
 
-class LookupMix(IdMix, LookupMix, DeletableMix, TsMix):
-    """Provides a base class for Lookup tables."""
-    pass
+#class LookupMix(IdMix, LookupMix, DeletableMix, TsMix):
+#    """Provides a base class for Lookup tables."""
+#    pass
