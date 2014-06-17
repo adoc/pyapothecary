@@ -27,7 +27,6 @@ def _tokenfunc(length):
 def id_mix(id_key='id'):
     """
     """
-
     class IdMix(object):
         """Integer primary key model mixin."""
         pass
@@ -46,7 +45,7 @@ def ts_mix(ts_col, oncreate=False, onupdate=False, defer=False,
     """
     `ts_col` - Column name for created timestamp.
     `oncreate` -
-    `onupdate` _
+    `onupdate` -
     `defer` - Defer loading of the columns to access time rather
               than at query.
     `timefunc` - 
@@ -273,6 +272,3 @@ LookupMix = lookup_mix()
 LookupMixExt = lookup_mix(ext_col='ext')
 
 
-#class LookupMix(IdMix, LookupMix, DeletableMix, TsMix):
-#    """Provides a base class for Lookup tables."""
-#    pass

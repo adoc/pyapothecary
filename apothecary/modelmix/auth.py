@@ -146,4 +146,43 @@ def user_mix(name_col="name", name_size=32,
     return User
 
 
+def group_mix(name_attr="name", name_col=None, name_size=32,
+              level_attr="level", level_col=None):
+    """
+    """
+    name_col = name_col or name_attr
+    level_col = level_col or level_attr
 
+    class Group(object):
+        """
+        """
+        @property
+        def _name(self):
+            return getattr(self, name_attr)
+
+        @_name.setter
+        def _name(self, value):
+            setattr(self, name_attr, value)
+
+        @property
+        def _level(self):
+            return getattr(self, level_attr)
+
+        @_level.setter
+        def _level(self, value):
+            setattr(self, level_attr, value)
+
+        def __cmp__(self, target):
+            return self._level - target._level
+
+    setattr(Group, name_attr,
+        sqlalchemy.Column(name_col,
+                          sqlalchemy.types.Unicode(name_size),
+                          nullable=False, unique=True))
+
+    setattr(Group, level_attr,
+        sqlalchemy.Column(level_col,
+                          sqlalchemy.types.Integer(),
+                          nullable=False, default=0))
+
+    return Group
