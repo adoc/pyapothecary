@@ -7,7 +7,7 @@ import cryptu.hash
 import cryptu.random
 import apothecary.modelmix
 
-__all__ = ("user_mix",)
+__all__ = ("user_mix", "group_mix", "permission_mix")
 
 
 if hasattr(base64, 'b85encode'):

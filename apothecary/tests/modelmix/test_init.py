@@ -68,47 +68,47 @@ class TestModelMix(SqlaTestCase):
 
     def test_id_mix(self):
         id_obj = IdModel()
-        self.session.add(id_obj)
-        self.session.commit()
+        self.__session__.add(id_obj)
+        self.__session__.commit()
 
         # Query object and check it.
-        queried_id_obj = self.session.query(IdModel).first()
+        queried_id_obj = self.__session__.query(IdModel).first()
         self.assertIs(id_obj, queried_id_obj)
         self.assertEqual(id_obj.id, 1)
 
     def test_ts_mix(self):
         ts_obj = TsModel()
         ts_obj.ts_set_now()
-        self.session.add(ts_obj)
-        self.session.commit()
+        self.__session__.add(ts_obj)
+        self.__session__.commit()
 
         # Query object and check it.
-        queried_ts_obj = self.session.query(TsModel).first()
+        queried_ts_obj = self.__session__.query(TsModel).first()
         self.assertIs(ts_obj, queried_ts_obj)
         self.assertGreater(queried_ts_obj.ts, 1402776709)
 
     def test_flag_mix(self):
         flag_obj = FlagModel()
-        self.session.add(flag_obj)
-        self.session.commit()
+        self.__session__.add(flag_obj)
+        self.__session__.commit()
 
-        queried_flag_obj = self.session.query(FlagModel).first()
+        queried_flag_obj = self.__session__.query(FlagModel).first()
         self.assertIs(queried_flag_obj, flag_obj)
         self.assertIs(queried_flag_obj.flag, True)
 
         queried_flag_obj.unset_flag()
-        self.session.add(queried_flag_obj)
-        self.session.commit()
+        self.__session__.add(queried_flag_obj)
+        self.__session__.commit()
 
-        queried_flag_obj = self.session.query(FlagModel).first()
+        queried_flag_obj = self.__session__.query(FlagModel).first()
         self.assertIs(queried_flag_obj.flag, False)
 
     def test_flag_ts_mix(self):
         flag_obj = FlagTsModel()
-        self.session.add(flag_obj)
-        self.session.commit()
+        self.__session__.add(flag_obj)
+        self.__session__.commit()
 
-        queried_flag_obj = self.session.query(FlagTsModel).first()
+        queried_flag_obj = self.__session__.query(FlagTsModel).first()
         self.assertIs(flag_obj, queried_flag_obj)
         self.assertIs(queried_flag_obj.flag, True)
         self.assertGreater(queried_flag_obj.flag_ts, 1402776709)
@@ -116,28 +116,28 @@ class TestModelMix(SqlaTestCase):
     def test_record_token_mix(self):
         token_obj = RecordTokenMixModel()
         token_obj.revoke_token()
-        self.session.add(token_obj)
-        self.session.commit()
+        self.__session__.add(token_obj)
+        self.__session__.commit()
 
-        queried_token_obj = self.session.query(RecordTokenMixModel).first()
+        queried_token_obj = self.__session__.query(RecordTokenMixModel).first()
         self.assertIs(token_obj, queried_token_obj)
         self.assertIsInstance(queried_token_obj.token, basestring)
         self.assertEqual(len(queried_token_obj.token), 6)
 
     def test_sequence_mix(self):
         seq_obj = SequenceMixModel()
-        self.session.add(seq_obj)
-        self.session.commit()
+        self.__session__.add(seq_obj)
+        self.__session__.commit()
 
-        queried_seq_obj = self.session.query(SequenceMixModel).first()
+        queried_seq_obj = self.__session__.query(SequenceMixModel).first()
         self.assertIs(seq_obj, queried_seq_obj)
         self.assertEqual(queried_seq_obj.sequence, 0)
 
         queried_seq_obj._sequence_inc()
-        self.session.add(queried_seq_obj)
-        self.session.commit()
+        self.__session__.add(queried_seq_obj)
+        self.__session__.commit()
 
-        queried_seq_obj = self.session.query(SequenceMixModel).first()
+        queried_seq_obj = self.__session__.query(SequenceMixModel).first()
         self.assertIs(seq_obj, queried_seq_obj)
         self.assertEqual(seq_obj.sequence, 1)
 
@@ -145,10 +145,10 @@ class TestModelMix(SqlaTestCase):
         lookup_obj = LookupMixModel()
         lookup_obj.key = u"test"
         lookup_obj.value = u"This is a test."
-        self.session.add(lookup_obj)
-        self.session.commit()
+        self.__session__.add(lookup_obj)
+        self.__session__.commit()
 
-        queried_lookup_obj = self.session.query(LookupMixModel).first()
+        queried_lookup_obj = self.__session__.query(LookupMixModel).first()
         self.assertIs(lookup_obj, queried_lookup_obj)
         self.assertEqual(queried_lookup_obj.key, u"test")
         self.assertEqual(queried_lookup_obj.value, u"This is a test.")

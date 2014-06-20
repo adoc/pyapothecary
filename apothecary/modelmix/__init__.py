@@ -4,11 +4,14 @@
 import os
 import time
 import base64
+import logging
 import sqlalchemy
 import sqlalchemy.types
 import sqlalchemy.orm
 import sqlalchemy.ext.hybrid
 
+
+logger = logging.getLogger(__name__)
 
 __all__ = ("id_mix", "IdMix", "ts_mix")
 
@@ -22,6 +25,29 @@ def _timefunc():
 def _tokenfunc(length):
     # 2.7 here. Put 3.0+ handling in another func.
     return base64.b64encode(os.urandom(length*2)).encode()[:length]
+
+
+class ConstructorMix(object):
+    """This sets column values using constructor keyword args.
+    """
+    def __init__(self, *args, **kwa):
+        """
+        """
+        cls = self.__class__
+        for key, val in kwa.items():
+            # Set primary attribute.
+            if self.__table__.columns.has_key(key):
+                setattr(self, key, val) # Set
+            # Set descriptor attribute.
+            elif hasattr(cls, key):
+                attr = getattr(cls, key)
+                if hasattr(attr, 'descriptor'):
+                    if isinstance(getattr(attr, 'descriptor'), property):
+                        setattr(self, key, val) # Set
+            else:
+                # Raise here I think.
+                # kwa ignored.
+                logger.warning("Key `%s` was not found in model. Ignoring.")
 
 
 def id_mix(id_key='id'):
@@ -38,6 +64,7 @@ def id_mix(id_key='id'):
     setattr(IdMix, id_key, col())
     return IdMix
 IdMix = id_mix()
+
 
 
 def ts_mix(ts_col, oncreate=False, onupdate=False, defer=False,
