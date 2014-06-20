@@ -186,3 +186,27 @@ def group_mix(name_attr="name", name_col=None, name_size=32,
                           nullable=False, default=0))
 
     return Group
+
+
+def permission_mix(name_attr="name", name_col=None, name_size=32):
+    """
+    """
+    name_col = name_col or name_attr
+
+    class Permission(object):
+        """
+        """
+        @property
+        def _name(self):
+            return getattr(self, name_attr)
+
+        @_name.setter
+        def _name(self, value):
+            setattr(self, name_attr, value)
+
+    setattr(Permission, name_attr,
+        sqlalchemy.Column(name_col,
+            sqlalchemy.types.Unicode(name_size),
+            nullable=False, unique=True))
+
+    return Permission
