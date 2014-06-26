@@ -7,7 +7,7 @@ import apothecary.modelmix.auth
 
 from apothecary.tests import SqlaTestCase
 
-# Multiple bases to separate test schema.
+
 Base = sqlalchemy.ext.declarative.declarative_base()
 
 

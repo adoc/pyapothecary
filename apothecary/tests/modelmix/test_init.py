@@ -57,14 +57,6 @@ class TestModelMix(SqlaTestCase):
     __base__ = Base
     # Much more extensive tests needed to test other constructions and
     #   functions available.
-    def test__timefunc(self):
-        ts_now = apothecary.modelmix._timefunc()
-        self.assertIsInstance(ts_now, int)
-        self.assertGreater(ts_now, 1402776709)
-
-    def test__tokenfunc(self):
-        token = apothecary.modelmix._tokenfunc(64)
-        self.assertEqual(len(token), 64)
 
     def test_id_mix(self):
         id_obj = IdModel()

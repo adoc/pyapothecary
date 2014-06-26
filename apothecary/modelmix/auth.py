@@ -3,44 +3,20 @@
 import math
 import base64
 import sqlalchemy.ext.hybrid
-import cryptu.hash
-import cryptu.random
+
 import apothecary.modelmix
+import apothecary.util
+
 
 __all__ = ("user_mix", "group_mix", "permission_mix")
-
-
-if hasattr(base64, 'b85encode'):
-    b85encode = base64.b85encode
-    b85decode = base64.b85decode
-else:
-    from ascii85 import b85encode, b85decode
-
-
-def _hashfunc(*args):
-    return cryptu.hash.shash(*args).digest()
-
-_hashfunc.digest_length = 64 # SHA512 length
-
-
-class _bencfunc(object):
-
-    @classmethod
-    def encode(self, value):
-        return b85encode(value)
-
-    @classmethod
-    def decode(self, value):
-        return b85decode(value)
-
-    overhead = 1.25 # Base85 overhead.
 
 
 def user_mix(name_col="name", name_size=32,
          namehash_col="namehash",
          passhash_col="passhash",
          salt_col="salt", salt_size=8,
-         binary_encode=False, hashfunc=_hashfunc, basefunc=_bencfunc):
+         binary_encode=False, hashfunc=apothecary.util.hash,
+         basefunc=apothecary.util.benc):
     """
     """
     assert callable(hashfunc), "`hashfunc` must be callable."
@@ -52,10 +28,8 @@ def user_mix(name_col="name", name_size=32,
     internal_salt_col = ''.join(['__', salt_col])
 
     hash_size = hashfunc.digest_length
-    hash_benc_size = math.ceil(hash_size *
-                                (basefunc.overhead+1))
-    salt_benc_size = math.ceil(salt_size *
-                                (basefunc.overhead+1))
+    hash_benc_size = basefunc.overhead(hash_size)
+    salt_benc_size = basefunc.overhead(salt_size)
 
     def encode(value):
         if binary_encode is True and value:
@@ -87,7 +61,7 @@ def user_mix(name_col="name", name_size=32,
             """Get salt if exists otherwise, create salt."""
             _salt = decode(getattr(self, internal_salt_col))
             if not _salt:
-                _salt = cryptu.random.read(salt_size)
+                _salt = apothecary.util.random.read(salt_size)
                 setattr(self, internal_salt_col, encode(_salt))
             return _salt
 

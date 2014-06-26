@@ -1,30 +1,18 @@
 """SQLAlchemy Model Mixins
 """
 
-import os
-import time
-import base64
 import logging
 import sqlalchemy
 import sqlalchemy.types
 import sqlalchemy.orm
 import sqlalchemy.ext.hybrid
 
+import apothecary.util
+
 
 logger = logging.getLogger(__name__)
 
 __all__ = ("id_mix", "IdMix", "ts_mix")
-
-
-def _timefunc():
-    """
-    """
-    return int(time.time())
-
-
-def _tokenfunc(length):
-    # 2.7 here. Put 3.0+ handling in another func.
-    return base64.b64encode(os.urandom(length*2)).encode()[:length]
 
 
 class ConstructorMix(object):
@@ -66,9 +54,8 @@ def id_mix(id_key='id'):
 IdMix = id_mix()
 
 
-
 def ts_mix(ts_col, oncreate=False, onupdate=False, defer=False,
-          timefunc=_timefunc, Type=sqlalchemy.types.Integer):
+          timefunc=apothecary.util.time, Type=sqlalchemy.types.Integer):
     """
     `ts_col` - Column name for created timestamp.
     `oncreate` -
@@ -172,7 +159,7 @@ ActiveMix = flag_mix('active')
 DeletableMix = flag_mix('deleted', default=False, invert_filter=True)
 
 
-def flag_ts_mix(flag_col, ts_col, default_flag=False, timefunc=_timefunc):
+def flag_ts_mix(flag_col, ts_col, default_flag=False, timefunc=apothecary.util.time):
     FlagMix = flag_mix(flag_col, default=default_flag)
     TsMix = ts_mix(ts_col, timefunc=timefunc, oncreate=default_flag is True)
 
@@ -196,18 +183,17 @@ def flag_ts_mix(flag_col, ts_col, default_flag=False, timefunc=_timefunc):
 
     return FlagTsMix
 
-
 def record_token_mix(token_col, length=6, oncreate=False, onupdate=False,
-                     tokenfunc=_tokenfunc, index=True,
+                     tokenfunc=apothecary.util.token, index=True,
                      Type=sqlalchemy.types.String):
-    """
+    """Random tokens used for ident or other security functionality.
     """
     def gentoken():
         # Closure to pass to SQLA events.
         return tokenfunc(length)
 
     if length < 6:
-        log.warning("SecMix with a length less than 6 is not recomended.")
+        log.warning("`record_token_mix` with a length less than 6 is not recomended.")
 
     class RecordTokenMix(object):
         """
