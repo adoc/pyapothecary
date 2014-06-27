@@ -36,11 +36,6 @@ class FlagTsModel(Base, apothecary.modelmix.flag_ts_mix('flag', 'flag_ts',
     id = sqlalchemy.Column(sqlalchemy.types.Integer, primary_key=True)
 
 
-class RecordTokenMixModel(Base, apothecary.modelmix.record_token_mix('token')):
-    __tablename__ = "test_record_token_mix"
-    id = sqlalchemy.Column(sqlalchemy.types.Integer, primary_key=True)
-
-
 class SequenceMixModel(Base, apothecary.modelmix.sequence_mix('sequence')):
     __tablename__ = "test_sequence_mix"
     id = sqlalchemy.Column(sqlalchemy.types.Integer, primary_key=True)
@@ -105,16 +100,7 @@ class TestModelMix(SqlaTestCase):
         self.assertIs(queried_flag_obj.flag, True)
         self.assertGreater(queried_flag_obj.flag_ts, 1402776709)
 
-    def test_record_token_mix(self):
-        token_obj = RecordTokenMixModel()
-        token_obj.revoke_token()
-        self.__session__.add(token_obj)
-        self.__session__.commit()
 
-        queried_token_obj = self.__session__.query(RecordTokenMixModel).first()
-        self.assertIs(token_obj, queried_token_obj)
-        self.assertIsInstance(queried_token_obj.token, basestring)
-        self.assertEqual(len(queried_token_obj.token), 6)
 
     def test_sequence_mix(self):
         seq_obj = SequenceMixModel()

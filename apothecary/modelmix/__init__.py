@@ -183,49 +183,6 @@ def flag_ts_mix(flag_col, ts_col, default_flag=False, timefunc=apothecary.util.t
 
     return FlagTsMix
 
-def record_token_mix(token_col, length=6, oncreate=False, onupdate=False,
-                     tokenfunc=apothecary.util.token, index=True,
-                     Type=sqlalchemy.types.String):
-    """Random tokens used for ident or other security functionality.
-    """
-    def gentoken():
-        # Closure to pass to SQLA events.
-        return tokenfunc(length)
-
-    if length < 6:
-        log.warning("`record_token_mix` with a length less than 6 is not recomended.")
-
-    class RecordTokenMix(object):
-        """
-        """
-        @sqlalchemy.ext.hybrid.hybrid_property
-        def _token(self):
-            return getattr(self, token_col)
-
-        @_token.setter
-        def _token(self, value):
-            assert isinstance(value, basestring), "`value` must be a string."
-            setattr(self, token_col, value)
-
-        def revoke_token(self):
-            """
-            """
-            self._token = gentoken()
-
-    def col(**kwa):
-        # Create the Column object with various options.
-        if oncreate is True:
-            kwa['default'] = gentoken
-        if onupdate is True:
-            kwa['default'] = gentoken #??
-            kwa['onupdate'] = gentoken
-        kwa['nullable'] = not(oncreate or onupdate)
-        kwa['index'] = index
-        return sqlalchemy.Column(Type(length), **kwa)
-
-    setattr(RecordTokenMix, token_col, col())
-    return RecordTokenMix
-
 
 def sequence_mix(sequence_col, default=0, index=True):
     class SequenceMix(object):

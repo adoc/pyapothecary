@@ -3,9 +3,10 @@ import apothecary.singleton
 
 
 def dict_query(Model, session=None, like=False, any=False):
-    """Return an object for querying 
+    """Return an object for querying that accepts keyword arguments
+    to directly query.
     """
-    # From codalib.alchemy.query_dict_as_criteria
+
     def _dict_query(*args, **kwa):
         assert session or args, "`dict_query` requires a SQLA Session argument."
         Session = session or args[0]
