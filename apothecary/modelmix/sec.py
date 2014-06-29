@@ -1,9 +1,13 @@
+import pprint
+
 import base64
+import inspect
 import logging
 import sqlalchemy
 import sqlalchemy.types
 import sqlalchemy.orm
 import sqlalchemy.ext.hybrid
+import sqlalchemy.ext.declarative
 
 import apothecary.util
 
@@ -12,60 +16,58 @@ logger = logging.getLogger(__name__)
 
 
 # Possibly rename this again.
-def record_token_mix(token_col, length=6, oncreate=False, onupdate=False,
+def record_token_mix(attr_name, col_name=None, length=6, onupdate=False,
                      tokenfunc=apothecary.util.token, index=True,
                      Type=sqlalchemy.types.String):
     """Random tokens used for ident or other security functionality.
     """
-    def gentoken():
-        # Closure to pass to SQLA events.
-        return tokenfunc(length)
 
     if length < 6:
-        log.warning("`record_token_mix` with a length less than 6 is not recomended.")
+        log.warning("`record_token_mix` with a length less than 6 is not "
+                    "recomended.")
+
+    _tokenfunc = lambda *a: tokenfunc(length)
+    _attr_name = '_' + attr_name
+    _col_name = col_name or attr_name
 
     class RecordTokenMix(object):
         """
         """
-        #@sqlalchemy.ext.hybrid.hybrid_property
         def get_token(self):
-            return getattr(self, token_col)
+            return getattr(self, _attr_name)
 
-        #@_token.setter
         def set_token(self, value):
             assert isinstance(value, basestring), "`value` must be a string."
-            setattr(self, token_col, value)
+            setattr(self, _attr_name, value)
 
         def revoke_token(self):
-            """
-            """
-            self.set_token(gentoken())
+            self.set_token(_tokenfunc())
 
-        token = sqlalchemy.ext.hybrid.hybrid_property(get_token, set_token,
-                                                      revoke_token)
-
-    def col(**kwa):
-        # Create the Column object with various options.
-        if oncreate is True:
-            kwa['default'] = gentoken
+    def token_col(**kwa):
+        kwa['default'] = _tokenfunc
         if onupdate is True:
-            kwa['default'] = gentoken #??
-            kwa['onupdate'] = gentoken
-        kwa['nullable'] = not(oncreate or onupdate)
+            kwa['onupdate'] = _tokenfunc
+        kwa['nullable'] = False # not(oncreate or onupdate)
         kwa['index'] = index
-        return sqlalchemy.Column(Type(length), **kwa)
+        return sqlalchemy.Column(_col_name, Type(length), **kwa)
 
-    setattr(RecordTokenMix, token_col, col())
+    setattr(RecordTokenMix, _attr_name, token_col())
+    setattr(RecordTokenMix, attr_name,
+            sqlalchemy.ext.declarative.declared_attr(lambda cls:
+                    sqlalchemy.orm.synonym(_attr_name,
+                            descriptor=property(RecordTokenMix.get_token,
+                                    RecordTokenMix.set_token,
+                                    RecordTokenMix.revoke_token))))
     return RecordTokenMix
 
 
 def url_token_mix(created_col='token_created', created_token_size=6,
-              updated_token='token_updated', updated_token_size=6,
-              hashfunc=apothecary.util.hash):
+                  updated_token='token_updated', updated_token_size=6,
+                  hashfunc=apothecary.util.hash):
     """
     """
     CreatedToken = record_token_mix(created_col, length=created_token_size,
-                                    oncreate=True, index=True)
+                                    index=True)
     UpdatedToken = record_token_mix(updated_token, length=updated_token_size,
                                     onupdate=True, index=False)
 
@@ -78,25 +80,20 @@ def url_token_mix(created_col='token_created', created_token_size=6,
         def get_securl(self, *namespace):
             """Returns hash based on the model's `SecMix.immutid`,
             `SecMix.mutid` and any `args` passed to provide a
-            namespace.
+            namespaceself.
             """
-            # Formerly get_code
             hashargs = (CreatedToken.get_token(self),
                         UpdatedToken.get_token(self)) + namespace
             digest = hashfunc(*hashargs)
             return base64.urlsafe_b64encode(digest).rstrip('=')
 
-        securl = sqlalchemy.ext.hybrid.hybrid_property(get_securl)
-
-        def get_securlid(self):
-            # formerly codeid
-            return UpdatedToken.get_token(self)
-
-        securlid = sqlalchemy.ext.hybrid.hybrid_property(get_securlid)
-
         def validate_securl(self, challenge, *namespace):
             """Validates a challenge code"""
             # formerly validate_code
             return self.get_securl(*namespace) == challenge
-            
+
+        securl = property(get_securl)
+        securlid = sqlalchemy.ext.declarative.declared_attr(
+                        lambda cls: sqlalchemy.orm.synonym(created_col))
+
     return UrlSecMix

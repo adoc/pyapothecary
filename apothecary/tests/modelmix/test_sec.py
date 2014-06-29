@@ -25,7 +25,6 @@ class TestSecModelMix(SqlaTestCase):
 
     def test_record_token_mix(self):
         token_obj = RecordTokenMixModel()
-        token_obj.revoke_token()
         self.__session__.add(token_obj)
         self.__session__.commit()
 
@@ -41,12 +40,11 @@ class TestSecModelMix(SqlaTestCase):
         self.__session__.commit()
 
         queried_obj = self.__session__.query(UrlTokenMixModel).first()
-        securl = queried_obj.securl
-        #print(queried_obj.token_created)
-        #print(queried_obj.token_updated)
-        #print(queried_obj.securl)
-        #print(queried_obj.securlid)
-
+        securl = url_token_obj.get_securl()
+        self.assertEqual(queried_obj.securl, securl)
         self.assertTrue(queried_obj.validate_securl(securl))
 
-        #assert False
+        queried_by_url = (self.__session__.query(UrlTokenMixModel)
+                    .filter(UrlTokenMixModel.securlid==queried_obj.securlid).one())
+
+        self.assertIs(url_token_obj, queried_by_url)
