@@ -72,11 +72,8 @@ def url_token_mix(created_col='token_created', created_token_size=6,
                                     onupdate=True, index=False)
 
     class UrlSecMix(UpdatedToken, CreatedToken):
-        """Provides extra security for urls generated.
-        *Defines no columns. Requires the model to also inherit from
-        SecMix.
+        """Provides one-time tokens 
         """
-
         def get_securl(self, *namespace):
             """Returns hash based on the model's `SecMix.immutid`,
             `SecMix.mutid` and any `args` passed to provide a
