@@ -213,8 +213,14 @@ def group_permission_mix(group_cls, permission_cls,
                          permissions_attr="permissions"):
     """
     """
-    parent_group_id_col = getattr(group_cls, group_cls.__id_attr__)
-    parent_permission_id_col = getattr(permission_cls, permission_cls.__id_attr__)
+    group_pri_key_columns = group_cls.__table__.primary_key.columns.items()
+    perm_pri_key_columns = permission_cls.__table__.primary_key.columns.items()
+
+    assert len(group_pri_key_columns) == 1, "group_permission_mix has no support for multiple primary key columns yet."
+    assert len(perm_pri_key_columns) == 1, "group_permission_mix has no support for multiple primary key columns yet."
+
+    parent_group_id_col = group_pri_key_columns[0][1]
+    parent_permission_id_col =  perm_pri_key_columns[0][1]
 
     class GroupPermission(object):
         """

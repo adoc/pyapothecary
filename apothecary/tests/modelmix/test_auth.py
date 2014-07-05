@@ -129,7 +129,6 @@ class TestModelMixAuth(SqlaTestCase):
         self.assertIs(queried_permission, permission)
 
     def test_group_permission_mix(self):
-        
         permission = PermissionMix(name="PERM")
         group = GroupMix(name="group")
         
@@ -137,6 +136,4 @@ class TestModelMixAuth(SqlaTestCase):
         
         group.permissions.append(permission)
         self.add(group)
-
-        
 
