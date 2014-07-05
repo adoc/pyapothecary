@@ -10,7 +10,6 @@ from apothecary.tests import SqlaTestCase
 
 Base = sqlalchemy.ext.declarative.declarative_base()
 
-
 class UserMixModel(Base, apothecary.modelmix.auth.user_mix()):
     """
     """
@@ -27,51 +26,70 @@ class UserMixEncModel(Base, apothecary.modelmix.auth.user_mix(binary_encode=True
 
 class GroupMix(Base, apothecary.modelmix.auth.group_mix()):
     __tablename__ = "test_group_mix"
+    __id_attr__ = "id"
     id = sqlalchemy.Column(sqlalchemy.types.Integer, primary_key=True)
 
 
 class PermissionMix(Base, apothecary.modelmix.auth.permission_mix()):
     __tablename__ = "test_permission_mix"
+    __id_attr__ = "id"
     id = sqlalchemy.Column(sqlalchemy.types.Integer, primary_key=True)
+
+
+# Working straight example.
+#class GroupPermissionMix(Base):
+#    __tablename__ = "test_group_permission_mix"
+#    id = sqlalchemy.Column(sqlalchemy.types.Integer, primary_key=True)
+#    group_id = sqlalchemy.Column(sqlalchemy.types.Integer,
+#                                 sqlalchemy.ForeignKey(GroupMix.id))
+#    permission_id = sqlalchemy.Column(sqlalchemy.types.Integer,
+#                                 sqlalchemy.ForeignKey(PermissionMix.id))
+#GroupMix._permissions = sqlalchemy.orm.relationship(PermissionMix,
+#                    secondary=GroupPermissionMix.__table__)
+
+
+class GroupPermissionMix(Base,
+        apothecary.modelmix.auth.group_permission_mix(GroupMix, PermissionMix)):
+    __tablename__ = "test_group_permission_mix"
+    id = sqlalchemy.Column(sqlalchemy.types.Integer, primary_key=True)
+
+GroupPermissionMix.init_group_relationship()
 
 
 class TestModelMixAuth(SqlaTestCase):
     __base__ = Base
 
     def test_user_mix(self):
-        user = UserMixModel()
+        user = UserMixModel(name="first")
         self.add(user)
 
         queried_user = self.query(UserMixModel).first()
         self.assertIs(queried_user, user)
 
-        queried_user._name = u"tester"
-        queried_user._password = u"12345"
+        queried_user.name = u"tester"
+        queried_user.password = u"12345"
         self.add(queried_user)
 
         queried_user = self.query(UserMixModel).first()
         self.assertIs(queried_user, user)
-        self.assertTrue(queried_user._challenge('12345'))
-        self.assertFalse(queried_user._challenge('54321'))
+        self.assertTrue(queried_user.challenge('12345'))
+        self.assertFalse(queried_user.challenge('54321'))
 
     def test_user_mix_binary_encoded(self):
-        user = UserMixEncModel()
+        user = UserMixEncModel(name="first")
         self.add(user)
 
         queried_user = self.query(UserMixEncModel).first()
         self.assertIs(queried_user, user)
 
-        queried_user._name = u"tester"
-        queried_user._password = u"12345"
+        queried_user.name = u"tester"
+        queried_user.password = u"12345"
         self.add(queried_user)
 
         queried_user = self.query(UserMixEncModel).first()
         self.assertIs(queried_user, user)
-        self.assertTrue(queried_user._challenge('12345'))
-        self.assertFalse(queried_user._challenge('54321'))
-
-        print(dir(queried_user))
-        print(vars(queried_user))
+        self.assertTrue(queried_user.challenge('12345'))
+        self.assertFalse(queried_user.challenge('54321'))
 
     def test_group_mix(self):
         group = GroupMix()
@@ -109,3 +127,16 @@ class TestModelMixAuth(SqlaTestCase):
 
         queried_permission = self.query(PermissionMix).get(permission.id)
         self.assertIs(queried_permission, permission)
+
+    def test_group_permission_mix(self):
+        
+        permission = PermissionMix(name="PERM")
+        group = GroupMix(name="group")
+        
+        self.add(permission)
+        
+        group.permissions.append(permission)
+        self.add(group)
+
+        
+

@@ -1,3 +1,6 @@
+import sys
+__py3__ = sys.version_info[0] is 3
+
 import unittest
 import sqlalchemy
 import sqlalchemy.types
@@ -5,6 +8,12 @@ import sqlalchemy.ext.declarative
 import apothecary.modelmix.sec
 
 from apothecary.tests import SqlaTestCase
+
+try:
+    _basestring = basestring
+except NameError:
+    _basestring = str
+
 
 # Multiple bases to separate test schema.
 Base = sqlalchemy.ext.declarative.declarative_base()
@@ -30,7 +39,11 @@ class TestSecModelMix(SqlaTestCase):
 
         queried_token_obj = self.__session__.query(RecordTokenMixModel).first()
         self.assertIs(token_obj, queried_token_obj)
-        self.assertIsInstance(queried_token_obj.token, basestring)
+        if __py3__:
+            self.assertIsInstance(queried_token_obj.token, bytes)
+        else:
+            self.assertIsInstance(queried_token_obj.token, _basestring)
+
         self.assertEqual(len(queried_token_obj.token), 6)
 
     def test_url_token_mix(self):

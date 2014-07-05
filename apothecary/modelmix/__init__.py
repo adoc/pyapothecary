@@ -1,5 +1,16 @@
 """SQLAlchemy Model Mixins
+
+id_mix
+    IdMix
+ts_mix
+    TsUpdatedMix
+    TsCreatedMix
+flag_mix
+    ActiveMix
+    DeletableMix
+
 """
+
 
 import logging
 import sqlalchemy
@@ -38,23 +49,25 @@ class ConstructorMix(object):
                 logger.warning("Key `%s` was not found in model. Ignoring.")
 
 
-def id_mix(id_key='id'):
+def id_mix(id_attr='id', id_col=None):
     """
     """
+    id_col = id_col or id_attr
     class IdMix(object):
         """Integer primary key model mixin."""
+        __id_attr__ = id_attr
         pass
 
     def col(**kwa):
         kwa['primary_key'] = True
-        return sqlalchemy.Column(sqlalchemy.types.Integer, **kwa)
+        return sqlalchemy.Column(id_col, sqlalchemy.types.Integer, **kwa)
 
-    setattr(IdMix, id_key, col())
+    setattr(IdMix, id_attr, col())
     return IdMix
 IdMix = id_mix()
 
 
-def ts_mix(ts_col, oncreate=False, onupdate=False, defer=False,
+def ts_mix(ts_attr, ts_col=None, oncreate=False, onupdate=False, defer=False,
           timefunc=apothecary.util.time, Type=sqlalchemy.types.Integer):
     """
     `ts_col` - Column name for created timestamp.
@@ -65,18 +78,19 @@ def ts_mix(ts_col, oncreate=False, onupdate=False, defer=False,
     `timefunc` - 
     `Type` -
     """
-    assert isinstance(ts_col, basestring), "`ts_col` attribute must be a string."
+    ts_col = ts_col or ts_attr
+    #assert isinstance(ts_col, basestring), "`ts_col` attribute must be a string."
 
     class TsMix(object):
         """Timestamp Model Mixin.
         """
         @sqlalchemy.ext.hybrid.hybrid_property
         def _ts(self):
-            return getattr(self, ts_col)
+            return getattr(self, ts_attr)
 
         @_ts.setter
         def _ts(self, value):
-            setattr(self, ts_col, value)
+            setattr(self, ts_attr, value)
 
         def _set_now(self):
             self._ts = timefunc()
@@ -89,16 +103,16 @@ def ts_mix(ts_col, oncreate=False, onupdate=False, defer=False,
             col_kwa['default'] = timefunc #??
             col_kwa['onupdate'] = timefunc
         col_kwa['nullable'] = not(oncreate or onupdate)
-        return sqlalchemy.Column(Type, **col_kwa)
+        return sqlalchemy.Column(ts_col, Type, **col_kwa)
 
-    setattr(TsMix, '_'.join([ts_col, 'set_now']), TsMix._set_now)
+    setattr(TsMix, '_'.join([ts_attr, 'set_now']), TsMix._set_now)
 
     if defer is True:
         # Defer loading of column.
-        setattr(TsMix, ts_col, sqlalchemy.orm.defered(col()))
+        setattr(TsMix, ts_attr, sqlalchemy.orm.defered(col()))
     else:
         # Eager (?) loading of column.
-        setattr(TsMix, ts_col, col())
+        setattr(TsMix, ts_attr, col())
     return TsMix
 TsUpdatedMix = ts_mix('ts_updated', onupdate=True)
 TsCreatedMix = ts_mix('ts_created', oncreate=True)

@@ -14,7 +14,7 @@ def dict_query(Model, session=None, like=False, any=False):
         query = Session.query(Model) # Get the query object from the session.
 
         def build_filters():
-            for key, val in kwa.iteritems():
+            for key, val in kwa.items():
                 attr = getattr(Model, key, None)
                 if attr is not None:
                     if like is True:

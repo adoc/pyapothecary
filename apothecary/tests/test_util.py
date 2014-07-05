@@ -6,19 +6,19 @@ import unittest
 import apothecary.util
 
 
+
 class TestUtil(unittest.TestCase):
     """
     """
     def test_hash(self):
-        dig = apothecary.util.hash('mine')
+        dig = apothecary.util.hash('mine'.encode())
         self.assertEqual(len(dig), 64)
-        dig = apothecary.util.hash('minessssss')
+        dig = apothecary.util.hash('minessssss'.encode())
         self.assertEqual(len(dig), 64)
 
     def test_benc(self):
-        l = 'minesesasdasdasdasdasd'
+        l = 'minesesasdasdasdasdasd'.encode()
         enc = apothecary.util.benc.encode(l)
-        print(enc)
         size = apothecary.util.benc.overhead(len(l))
         self.assertLessEqual(len(enc), size)
         self.assertEqual(apothecary.util.benc.decode(enc), l)

@@ -3,6 +3,9 @@ import time as _time
 import math
 import base64
 import logging
+import sqlalchemy.orm
+import sqlalchemy.ext.declarative
+
 
 __all__ = ('hash', 'benc', 'random', 'time', 'token')
 
@@ -28,12 +31,10 @@ except ImportError:
             for arg in args:
                 alg.update(arg)
         return alg.digest()
-
     hash.digest_length = 64
 else:
     def hash(*args):
         return cryptu.hash.shash(*args).digest()
-
     hash.digest_length = 64 # SHA512 length
 
 
@@ -119,4 +120,17 @@ except ImportError:
 
 def token(length):
     # 2.7 here. Put 3.0+ handling in another func.
-    return base64.b64encode(os.urandom(length*2)).encode()[:length]
+    return random.read(length)
+    #return base64.b64encode(os.urandom(length*2)).encode()[:length]
+
+
+
+def synonym(attr_name, *prop, **kwa):
+    """(*fget, fset, fdel)
+    """
+
+    if prop:
+        kwa['descriptor'] = property(*prop)
+
+    return sqlalchemy.ext.declarative.declared_attr(lambda cls:
+                sqlalchemy.orm.synonym(attr_name, **kwa))
