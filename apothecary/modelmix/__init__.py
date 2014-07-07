@@ -17,6 +17,7 @@ import sqlalchemy
 import sqlalchemy.types
 import sqlalchemy.orm
 import sqlalchemy.ext.hybrid
+import sqlalchemy.ext.declarative
 
 import apothecary.util
 
@@ -256,3 +257,54 @@ LookupMix = lookup_mix()
 LookupMixExt = lookup_mix(ext_col='ext')
 
 
+def association_mix(left_cls, right_cls,
+                    left_id_colprefix="left_id",
+                    right_id_colprefix="right_id"):
+    """
+    """
+    left_pri_key_cols = left_cls.__table__.primary_key.columns
+    right_pri_key_cols = right_cls.__table__.primary_key.columns
+
+    class AssociationMix(object):
+        """
+        """
+        @classmethod
+        def init_left_relationship(cls, attrname, **kwa):
+            """
+            """
+            kwa['secondary'] = cls.__table__
+            #kwa['foreign_keys'] = cls.__left_local_keys__
+            #print(kwa['foreign_keys'])
+            setattr(left_cls, attrname,
+                    sqlalchemy.orm.relationship(right_cls, **kwa))
+
+        @classmethod
+        def init_right_relationship(cls, attrname, **kwa):
+            """
+            """
+            kwa['secondary'] = cls.__table__
+            kwa['foreign_keys'] = cls.__right_local_keys__
+            setattr(right_cls, attrname,
+                    sqlalchemy.orm.relationship(left_cls, **kwa))
+
+    def apply_col_attrs(columns, prefix):
+        local_keys = []
+        for n, pack in enumerate(columns.items()):
+            key, foreign_column = pack
+            colkey = '_'.join([prefix, key]) #and n??
+            
+            col = sqlalchemy.Column(colkey, 
+                            foreign_column.type,
+                            sqlalchemy.ForeignKey(foreign_column))
+
+            #column = apothecary.util.column(colkey, 
+            #                foreign_column.type,
+            #                sqlalchemy.ForeignKey(foreign_column))
+            setattr(AssociationMix, colkey, sqlalchemy.ext.declarative.declared_attr(lambda cls: col))
+            local_keys.append(col)
+        return local_keys
+
+    AssociationMix.__left_local_keys__ = apply_col_attrs(left_pri_key_cols, left_id_colprefix)
+    AssociationMix.__right_local_keys__ = apply_col_attrs(right_pri_key_cols, right_id_colprefix)
+
+    return AssociationMix

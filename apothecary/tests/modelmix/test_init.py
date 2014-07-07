@@ -45,6 +45,50 @@ class LookupMixModel(Base, apothecary.modelmix.lookup_mix()):
     __tablename__ = "test_lookup_mix"
     id = sqlalchemy.Column(sqlalchemy.types.Integer, primary_key=True)
 
+class AssociationLeft(Base):
+    __tablename__ = "test_association_left"
+    id = sqlalchemy.Column(sqlalchemy.types.Integer, primary_key=True)
+    name = sqlalchemy.Column(sqlalchemy.types.String(32), index=True)
+
+class AssociationRight(Base):
+    __tablename__ = "test_association_right"
+    id = sqlalchemy.Column(sqlalchemy.types.Integer, primary_key=True)
+    name = sqlalchemy.Column(sqlalchemy.types.String(32), index=True)
+
+class AssociationMix(Base,
+        apothecary.modelmix.association_mix(AssociationLeft, AssociationRight)):
+    __tablename__ = "test_association_mix"
+    id = sqlalchemy.Column(sqlalchemy.types.Integer, primary_key=True)
+
+AssociationMix.init_left_relationship('rights')
+AssociationMix.init_right_relationship('lefts')
+
+
+class AssociationMultPriLeft(Base):
+    __tablename__ = "test_association_multipri_left"
+    id0 = sqlalchemy.Column(sqlalchemy.types.Boolean, primary_key=True)
+    id1 = sqlalchemy.Column(sqlalchemy.types.Boolean, primary_key=True)
+    #id2 = sqlalchemy.Column(sqlalchemy.types.Boolean, primary_key=True)
+    name = sqlalchemy.Column(sqlalchemy.types.String(32), index=True)
+
+
+class AssociationMultPriRight(Base):
+    __tablename__ = "test_association_multipri_right"
+    id0 = sqlalchemy.Column(sqlalchemy.types.Boolean, primary_key=True)
+    id1 = sqlalchemy.Column(sqlalchemy.types.Boolean, primary_key=True)
+    #id2 = sqlalchemy.Column(sqlalchemy.types.Boolean, primary_key=True)
+    name = sqlalchemy.Column(sqlalchemy.types.String(32), index=True)
+
+
+class AssociationMultPri(Base,
+        apothecary.modelmix.association_mix(AssociationMultPriLeft, 
+                                   AssociationMultPriRight)):
+    __tablename__ = "test_association_multipri_mix"
+    id = sqlalchemy.Column(sqlalchemy.types.Integer, primary_key=True)
+#print(vars(AssociationMultPri))
+#AssociationMultPri.init_left_relationship('rights')
+#AssociationMultPri.init_right_relationship('lefts')
+
 
 # Tests
 # =====
@@ -100,8 +144,6 @@ class TestModelMix(SqlaTestCase):
         self.assertIs(queried_flag_obj.flag, True)
         self.assertGreater(queried_flag_obj.flag_ts, 1402776709)
 
-
-
     def test_sequence_mix(self):
         seq_obj = SequenceMixModel()
         self.__session__.add(seq_obj)
@@ -130,3 +172,83 @@ class TestModelMix(SqlaTestCase):
         self.assertIs(lookup_obj, queried_lookup_obj)
         self.assertEqual(queried_lookup_obj.key, u"test")
         self.assertEqual(queried_lookup_obj.value, u"This is a test.")
+
+    def test_association_mix(self):
+        left1 = AssociationLeft(name="left1")
+        left2 = AssociationLeft(name="left2")
+        left3 = AssociationLeft(name="left3")
+        left4 = AssociationLeft(name="left4")
+        right1 = AssociationRight(name="right1")
+        right2 = AssociationRight(name="right2")
+        right3 = AssociationRight(name="right3")
+        right4 = AssociationRight(name="right4")
+
+        left1.rights.append(right1)
+        left1.rights.append(right3)
+        left2.rights.append(right2)
+        left2.rights.append(right4)
+        right3.lefts.append(left3)
+        right4.lefts.append(left4)
+
+        self.add(left1)
+        self.add(left2)
+        self.add(left3)
+        self.add(left4)
+        self.add(right1)
+        self.add(right2)
+        self.add(right3)
+        self.add(right4)
+
+        qleft1 = (self.__session__.query(AssociationLeft)
+                    .filter(AssociationLeft.name=="left1").one())
+        qleft2 = (self.__session__.query(AssociationLeft)
+                    .filter(AssociationLeft.name=="left2").one())
+        qleft3 = (self.__session__.query(AssociationLeft)
+                    .filter(AssociationLeft.name=="left3").one())
+        qleft4 = (self.__session__.query(AssociationLeft)
+                    .filter(AssociationLeft.name=="left4").one())
+
+        self.assertIs(qleft1.rights[0], right1)
+        self.assertIs(qleft1.rights[1], right3)
+        self.assertIs(qleft2.rights[0], right2)
+        self.assertIs(qleft2.rights[1], right4)
+    '''
+    def test_association_multipre_mix(self):
+        left1 = AssociationMultPriLeft(id0=0, id1=0, name="left1")
+        left2 = AssociationMultPriLeft(id0=1, id1=0, name="left2")
+        left3 = AssociationMultPriLeft(id0=0, id1=1, name="left3")
+        left4 = AssociationMultPriLeft(id0=1, id1=1, name="left4")
+        right1 = AssociationMultPriRight(id0=0, id1=0, name="right1")
+        right2 = AssociationMultPriRight(id0=1, id1=0, name="right2")
+        right3 = AssociationMultPriRight(id0=0, id1=1, name="right3")
+        right4 = AssociationMultPriRight(id0=1, id1=1, name="right4")
+
+        left1.rights.append(right1)
+        left1.rights.append(right3)
+        left2.rights.append(right2)
+        left2.rights.append(right4)
+        right3.lefts.append(left3)
+        right4.lefts.append(left4)
+
+        self.add(left1)
+        self.add(left2)
+        self.add(left3)
+        self.add(left4)
+        self.add(right1)
+        self.add(right2)
+        self.add(right3)
+        self.add(right4)
+
+        qleft1 = (self.__session__.query(AssociationLeft)
+                    .filter(AssociationLeft.name=="left1").one())
+        qleft2 = (self.__session__.query(AssociationLeft)
+                    .filter(AssociationLeft.name=="left2").one())
+        qleft3 = (self.__session__.query(AssociationLeft)
+                    .filter(AssociationLeft.name=="left3").one())
+        qleft4 = (self.__session__.query(AssociationLeft)
+                    .filter(AssociationLeft.name=="left4").one())
+
+        self.assertIs(qleft1.rights[0], right1)
+        self.assertIs(qleft1.rights[1], right3)
+        self.assertIs(qleft2.rights[0], right2)
+        self.assertIs(qleft2.rights[1], right4)'''

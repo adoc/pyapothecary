@@ -1,4 +1,4 @@
-"""
+"""Authentication Model Mixins.
 """
 import math
 import base64
@@ -24,7 +24,7 @@ def user_mix(name_attr="name", name_col=None, name_size=32, index_name=False,
          hashfunc=apothecary.util.hash,
          binary_encode=False,
          basefunc=apothecary.util.benc):
-    """
+    """Create a User Model Mixin.
     """
     assert callable(hashfunc), "`hashfunc` must be callable."
     assert callable(basefunc), "`basefunc` must be callable."
@@ -47,8 +47,8 @@ def user_mix(name_attr="name", name_col=None, name_size=32, index_name=False,
             return basefunc.decode(value)
         return value
 
-    class User(object):
-        """
+    class UserMix(object):
+        """User Model Mixin.
         """
         # Create columns
         __name = sqlalchemy.Column(name_col,
@@ -114,22 +114,22 @@ def user_mix(name_attr="name", name_col=None, name_size=32, index_name=False,
             # Always comparing bytes hashes here.
             return challenge_hash == self._passhash
 
-    setattr(User, name_attr, apothecary.util.synonym('_name'))
-    setattr(User, namehash_attr, apothecary.util.synonym('_namehash'))
-    setattr(User, passhash_attr, apothecary.util.synonym('_passhash'))
+    setattr(UserMix, name_attr, apothecary.util.synonym('_name'))
+    setattr(UserMix, namehash_attr, apothecary.util.synonym('_namehash'))
+    setattr(UserMix, passhash_attr, apothecary.util.synonym('_passhash'))
 
-    return User
+    return UserMix
 
 
 def group_mix(name_attr="name", name_col=None, name_size=32,
               level_attr="level", level_col=None):
-    """
+    """Create a Group Model Mixin.
     """
     name_col = name_col or name_attr
     level_col = level_col or level_attr
 
-    class Group(object):
-        """
+    class GroupMix(object):
+        """Group Model Mixin.
         """
         __name = sqlalchemy.Column(name_col,
                           sqlalchemy.types.Unicode(name_size),
@@ -176,19 +176,25 @@ def group_mix(name_attr="name", name_col=None, name_size=32,
         def __ne__(self, other):
             return self._level != other._level
 
-    setattr(Group, name_attr, apothecary.util.synonym("_name"))
-    setattr(Group, level_attr, apothecary.util.synonym("_level"))
+    setattr(GroupMix, name_attr, apothecary.util.synonym("_name"))
+    setattr(GroupMix, level_attr, apothecary.util.synonym("_level"))
 
-    return Group
+    return GroupMix
+
+
+def user_group_mix(user_cls, group_cls):
+    """Create a User<->Group Association. (Many-to-many).
+    """
+    pass
 
 
 def permission_mix(name_attr="name", name_col=None, name_size=32):
-    """
+    """Create a Permission Model Mixin.
     """
     name_col = name_col or name_attr
 
     class Permission(object):
-        """
+        """Permission Model Mixin.
         """
         __name = sqlalchemy.Column(name_col,
                 sqlalchemy.types.Unicode(name_size),
@@ -207,23 +213,26 @@ def permission_mix(name_attr="name", name_col=None, name_size=32):
 
     return Permission
 
+
 def group_permission_mix(group_cls, permission_cls,
                          group_id_colname="group_id",
                          permission_id_colname="permission_id",
-                         permissions_attr="permissions"):
+                         permissions_attr="permissions",
+                         init_group_relationship=False):
+    """Create a Group<->Permission Association. (Many-to-many).
     """
-    """
+    # This can be abstracted further in to a "general" association func/class.
     group_pri_key_columns = group_cls.__table__.primary_key.columns.items()
     perm_pri_key_columns = permission_cls.__table__.primary_key.columns.items()
 
+    # Temporary to disallow models with multiple pri-key columns.
     assert len(group_pri_key_columns) == 1, "group_permission_mix has no support for multiple primary key columns yet."
     assert len(perm_pri_key_columns) == 1, "group_permission_mix has no support for multiple primary key columns yet."
-
     parent_group_id_col = group_pri_key_columns[0][1]
     parent_permission_id_col =  perm_pri_key_columns[0][1]
 
     class GroupPermission(object):
-        """
+        """Group<->Permission Association.
         """
         __group_id = sqlalchemy.ext.declarative.declared_attr(lambda cls:
                         sqlalchemy.Column(group_id_colname,
@@ -235,11 +244,17 @@ def group_permission_mix(group_cls, permission_cls,
                             sqlalchemy.ForeignKey(parent_permission_id_col)))
 
         @classmethod
-        def init_group_relationship(cls):
+        def init_group_relationship(cls, **kwa):
             """Enable the relationship on the Group model.
             """
+            # This seems the most convenient place to put this.
+
+            kwa['secondary'] = cls.__table__
             setattr(group_cls, permissions_attr,
-                    sqlalchemy.orm.relationship(
-                        permission_cls, secondary=cls.__table__))
+                    sqlalchemy.orm.relationship(permission_cls, **kwa))
 
     return GroupPermission
+
+
+def user_permission_mix(user_cls, permission_cls):
+    pass

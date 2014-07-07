@@ -25,3 +25,4 @@ class SqlaTestCase(unittest.TestCase):
     def add(self, obj):
         self.__session__.add(obj)
         self.__session__.commit()
+        return obj

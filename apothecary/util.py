@@ -124,9 +124,9 @@ def token(length):
     #return base64.b64encode(os.urandom(length*2)).encode()[:length]
 
 
-
 def synonym(attr_name, *prop, **kwa):
-    """(*fget, fset, fdel)
+    """Shortcut for a declarative synonym attribute.
+    (*fget, fset, fdel)
     """
 
     if prop:
@@ -134,3 +134,10 @@ def synonym(attr_name, *prop, **kwa):
 
     return sqlalchemy.ext.declarative.declared_attr(lambda cls:
                 sqlalchemy.orm.synonym(attr_name, **kwa))
+
+
+def column(*args, **kwa):
+    """Shortcut for a declarative column attribute.
+    """
+    return sqlalchemy.ext.declarative.declared_attr(lambda cls:
+                sqlalchemy.Column(*args, **kwa))
