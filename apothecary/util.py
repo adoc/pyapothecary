@@ -141,3 +141,27 @@ def column(*args, **kwa):
     """
     return sqlalchemy.ext.declarative.declared_attr(lambda cls:
                 sqlalchemy.Column(*args, **kwa))
+
+
+def unique(session, cls, hashfunc, queryfunc, constructor, arg, kw):
+    """
+    author: Michael Bayer
+    src: https://bitbucket.org/zzzeek/sqlalchemy/wiki/UsageRecipes/UniqueObject
+    """
+    cache = getattr(session, '_unique_cache', None)
+    if cache is None:
+        session._unique_cache = cache = {}
+
+    key = (cls, hashfunc(*arg, **kw))
+    if key in cache:
+        return cache[key]
+    else:
+        with session.no_autoflush:
+            q = session.query(cls)
+            q = queryfunc(q, *arg, **kw)
+            obj = q.first()
+            if not obj:
+                obj = constructor(*arg, **kw)
+                session.add(obj)
+        cache[key] = obj
+        return obj

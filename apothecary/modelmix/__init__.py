@@ -256,12 +256,14 @@ def lookup_mix(key_col='key', value_col='desc', ext_col=None,
 LookupMix = lookup_mix()
 LookupMixExt = lookup_mix(ext_col='ext')
 
-
+'''
+# borked
 def association_mix(left_cls, right_cls,
                     left_id_colprefix="left_id",
                     right_id_colprefix="right_id"):
     """
-    """
+    """# Not working for multi_pri key relationships. Need to check proper
+        # usage of `foreign_keys` on relationship.
     left_pri_key_cols = left_cls.__table__.primary_key.columns
     right_pri_key_cols = right_cls.__table__.primary_key.columns
 
@@ -308,3 +310,28 @@ def association_mix(left_cls, right_cls,
     AssociationMix.__right_local_keys__ = apply_col_attrs(right_pri_key_cols, right_id_colprefix)
 
     return AssociationMix
+'''
+
+class UniqueMix(object):
+    """
+    author: Michael Bayer
+    src: https://bitbucket.org/zzzeek/sqlalchemy/wiki/UsageRecipes/UniqueObject
+    """
+    @classmethod
+    def unique_hash(cls, *arg, **kw):
+        raise NotImplementedError()
+
+    @classmethod
+    def unique_filter(cls, query, *arg, **kw):
+        raise NotImplementedError()
+
+    @classmethod
+    def as_unique(cls, session, *arg, **kw):
+        return apothecary.util.unique(
+                    session,
+                    cls,
+                    cls.unique_hash,
+                    cls.unique_filter,
+                    cls,
+                    arg, kw
+               )
