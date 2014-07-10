@@ -119,7 +119,7 @@ TsUpdatedMix = ts_mix('ts_updated', onupdate=True)
 TsCreatedMix = ts_mix('ts_created', oncreate=True)
 
 
-def flag_mix(flag_col, default=True, invert_filter=False,
+def flag_mix(flag_col, default=False, invert_filter=False,
             Type=sqlalchemy.types.Boolean):
     """Allows for the arbitrary creation of flag (boolean) attributes.
     Queries are automatically filtered based on the flag when coupled

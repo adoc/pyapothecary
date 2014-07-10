@@ -1,3 +1,6 @@
+import sys
+__py3__ = sys.version_info[0] is 3
+
 import os
 import time as _time
 import math
@@ -11,6 +14,10 @@ __all__ = ('hash', 'benc', 'random', 'time', 'token')
 
 logger = logging.getLogger(__name__)
 
+if __py3__ is True:
+    b64_filesafe_alts = "-_".encode()
+else:
+    b64_filesafe_alts = "-_"
 
 try:
     range = xrange
@@ -92,6 +99,19 @@ else:
             @classmethod
             def overhead(cls, n):
                 return math.ceil(n / 4.0) * 5
+
+class filesafe_benc(object):
+    @classmethod
+    def encode(cls, value):
+        return base64.b64encode(value, altchars=b64_filesafe_alts)
+
+    @classmethod
+    def decode(cls,value):
+        return base64.b64decode(value, altchars=b64_filesafe_alts)
+
+    @classmethod
+    def overhead(cls, n):
+        return math.ceil(n / 4.0) * 5
 
 
 def time():

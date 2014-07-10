@@ -103,7 +103,7 @@ def url_token_mix(created_col='token_created', created_token_size=6,
     UpdatedToken = record_token_mix(updated_token, length=updated_token_size,
                                     onupdate=True, index=False)
 
-    class UrlSecMix(UpdatedToken, CreatedToken):
+    class UrlTokenMix(UpdatedToken, CreatedToken):
         """Provides one-time tokens 
         """
         def get_securl(self, *namespace):
@@ -125,5 +125,5 @@ def url_token_mix(created_col='token_created', created_token_size=6,
         securlid = sqlalchemy.ext.declarative.declared_attr(
                         lambda cls: sqlalchemy.orm.synonym(created_col))
 
-    return UrlSecMix
-
+    return UrlTokenMix
+UrlTokenMix = url_token_mix()
