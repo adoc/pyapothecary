@@ -1,69 +1,97 @@
 """SQLAlchemy Model Mixins
+
+id_mix
+    IdMix
+ts_mix
+    TsUpdatedMix
+    TsCreatedMix
+flag_mix
+    ActiveMix
+    DeletableMix
+
 """
 
-import os
-import time
-import base64
+
+import logging
 import sqlalchemy
 import sqlalchemy.types
 import sqlalchemy.orm
 import sqlalchemy.ext.hybrid
+import sqlalchemy.ext.declarative
 
+import apothecary.util
+
+
+logger = logging.getLogger(__name__)
 
 __all__ = ("id_mix", "IdMix", "ts_mix")
 
 
-def _timefunc():
+class ConstructorMix(object):
+    """This sets column values using constructor keyword args.
+    """
+    def __init__(self, *args, **kwa):
+        """
+        """
+        cls = self.__class__
+        for key, val in kwa.items():
+            # Set primary attribute.
+            if self.__table__.columns.has_key(key):
+                setattr(self, key, val) # Set
+            # Set descriptor attribute.
+            elif hasattr(cls, key):
+                attr = getattr(cls, key)
+                if hasattr(attr, 'descriptor'):
+                    if isinstance(getattr(attr, 'descriptor'), property):
+                        setattr(self, key, val) # Set
+            else:
+                # Raise here I think.
+                # kwa ignored.
+                logger.warning("Key `%s` was not found in model. Ignoring.")
+
+
+def id_mix(id_attr='id', id_col=None):
     """
     """
-    return int(time.time())
-
-
-def _tokenfunc(length):
-    # 2.7 here. Put 3.0+ handling in another func.
-    return base64.b64encode(os.urandom(length*2)).encode()[:length]
-
-
-def id_mix(id_key='id'):
-    """
-    """
-
+    id_col = id_col or id_attr
     class IdMix(object):
         """Integer primary key model mixin."""
+        __id_attr__ = id_attr
         pass
 
     def col(**kwa):
         kwa['primary_key'] = True
-        return sqlalchemy.Column(sqlalchemy.types.Integer, **kwa)
+        return sqlalchemy.Column(id_col, sqlalchemy.types.Integer, **kwa)
 
-    setattr(IdMix, id_key, col())
+    setattr(IdMix, id_attr, col())
     return IdMix
 IdMix = id_mix()
 
 
-def ts_mix(ts_col, oncreate=False, onupdate=False, defer=False,
-          timefunc=_timefunc, Type=sqlalchemy.types.Integer):
+def ts_mix(ts_attr, ts_col=None, oncreate=False, onupdate=False, defer=False,
+          timefunc=apothecary.util.time, Type=sqlalchemy.types.Integer):
     """
     `ts_col` - Column name for created timestamp.
     `oncreate` -
-    `onupdate` _
+    `onupdate` -
     `defer` - Defer loading of the columns to access time rather
               than at query.
     `timefunc` - 
     `Type` -
     """
-    assert isinstance(ts_col, basestring), "`ts_col` attribute must be a string."
+    ts_col = ts_col or ts_attr
+    #assert isinstance(ts_col, basestring), "`ts_col` attribute must be a string."
 
     class TsMix(object):
         """Timestamp Model Mixin.
         """
         @sqlalchemy.ext.hybrid.hybrid_property
         def _ts(self):
-            return getattr(self, ts_col)
+            return getattr(self, ts_attr)
 
         @_ts.setter
         def _ts(self, value):
-            setattr(self, ts_col, value)
+            setattr(self, ts_attr, value)
 
         def _set_now(self):
             self._ts = timefunc()
@@ -76,22 +104,22 @@ def ts_mix(ts_col, oncreate=False, onupdate=False, defer=False,
             col_kwa['default'] = timefunc #??
             col_kwa['onupdate'] = timefunc
         col_kwa['nullable'] = not(oncreate or onupdate)
-        return sqlalchemy.Column(Type, **col_kwa)
+        return sqlalchemy.Column(ts_col, Type, **col_kwa)
 
-    setattr(TsMix, '_'.join([ts_col, 'set_now']), TsMix._set_now)
+    setattr(TsMix, '_'.join([ts_attr, 'set_now']), TsMix._set_now)
 
     if defer is True:
         # Defer loading of column.
-        setattr(TsMix, ts_col, sqlalchemy.orm.defered(col()))
+        setattr(TsMix, ts_attr, sqlalchemy.orm.defered(col()))
     else:
         # Eager (?) loading of column.
-        setattr(TsMix, ts_col, col())
+        setattr(TsMix, ts_attr, col())
     return TsMix
 TsUpdatedMix = ts_mix('ts_updated', onupdate=True)
 TsCreatedMix = ts_mix('ts_created', oncreate=True)
 
 
-def flag_mix(flag_col, default=True, invert_filter=False,
+def flag_mix(flag_col, default=False, invert_filter=False,
             Type=sqlalchemy.types.Boolean):
     """Allows for the arbitrary creation of flag (boolean) attributes.
     Queries are automatically filtered based on the flag when coupled
@@ -146,7 +174,7 @@ ActiveMix = flag_mix('active')
 DeletableMix = flag_mix('deleted', default=False, invert_filter=True)
 
 
-def flag_ts_mix(flag_col, ts_col, default_flag=False, timefunc=_timefunc):
+def flag_ts_mix(flag_col, ts_col, default_flag=False, timefunc=apothecary.util.time):
     FlagMix = flag_mix(flag_col, default=default_flag)
     TsMix = ts_mix(ts_col, timefunc=timefunc, oncreate=default_flag is True)
 
@@ -169,50 +197,6 @@ def flag_ts_mix(flag_col, ts_col, default_flag=False, timefunc=_timefunc):
                 setattr(self, ts_col, None)
 
     return FlagTsMix
-
-
-def record_token_mix(token_col, length=6, oncreate=False, onupdate=False,
-                     tokenfunc=_tokenfunc, index=True,
-                     Type=sqlalchemy.types.String):
-    """
-    """
-    def gentoken():
-        # Closure to pass to SQLA events.
-        return tokenfunc(length)
-
-    if length < 6:
-        log.warning("SecMix with a length less than 6 is not recomended.")
-
-    class RecordTokenMix(object):
-        """
-        """
-        @sqlalchemy.ext.hybrid.hybrid_property
-        def _token(self):
-            return getattr(self, token_col)
-
-        @_token.setter
-        def _token(self, value):
-            assert isinstance(value, basestring), "`value` must be a string."
-            setattr(self, token_col, value)
-
-        def revoke_token(self):
-            """
-            """
-            self._token = gentoken()
-
-    def col(**kwa):
-        # Create the Column object with various options.
-        if oncreate is True:
-            kwa['default'] = gentoken
-        if onupdate is True:
-            kwa['default'] = gentoken #??
-            kwa['onupdate'] = gentoken
-        kwa['nullable'] = not(oncreate or onupdate)
-        kwa['index'] = index
-        return sqlalchemy.Column(Type(length), **kwa)
-
-    setattr(RecordTokenMix, token_col, col())
-    return RecordTokenMix
 
 
 def sequence_mix(sequence_col, default=0, index=True):
@@ -272,7 +256,82 @@ def lookup_mix(key_col='key', value_col='desc', ext_col=None,
 LookupMix = lookup_mix()
 LookupMixExt = lookup_mix(ext_col='ext')
 
+'''
+# borked
+def association_mix(left_cls, right_cls,
+                    left_id_colprefix="left_id",
+                    right_id_colprefix="right_id"):
+    """
+    """# Not working for multi_pri key relationships. Need to check proper
+        # usage of `foreign_keys` on relationship.
+    left_pri_key_cols = left_cls.__table__.primary_key.columns
+    right_pri_key_cols = right_cls.__table__.primary_key.columns
 
-#class LookupMix(IdMix, LookupMix, DeletableMix, TsMix):
-#    """Provides a base class for Lookup tables."""
-#    pass
+    class AssociationMix(object):
+        """
+        """
+        @classmethod
+        def init_left_relationship(cls, attrname, **kwa):
+            """
+            """
+            kwa['secondary'] = cls.__table__
+            #kwa['foreign_keys'] = cls.__left_local_keys__
+            #print(kwa['foreign_keys'])
+            setattr(left_cls, attrname,
+                    sqlalchemy.orm.relationship(right_cls, **kwa))
+
+        @classmethod
+        def init_right_relationship(cls, attrname, **kwa):
+            """
+            """
+            kwa['secondary'] = cls.__table__
+            kwa['foreign_keys'] = cls.__right_local_keys__
+            setattr(right_cls, attrname,
+                    sqlalchemy.orm.relationship(left_cls, **kwa))
+
+    def apply_col_attrs(columns, prefix):
+        local_keys = []
+        for n, pack in enumerate(columns.items()):
+            key, foreign_column = pack
+            colkey = '_'.join([prefix, key]) #and n??
+            
+            col = sqlalchemy.Column(colkey, 
+                            foreign_column.type,
+                            sqlalchemy.ForeignKey(foreign_column))
+
+            #column = apothecary.util.column(colkey, 
+            #                foreign_column.type,
+            #                sqlalchemy.ForeignKey(foreign_column))
+            setattr(AssociationMix, colkey, sqlalchemy.ext.declarative.declared_attr(lambda cls: col))
+            local_keys.append(col)
+        return local_keys
+
+    AssociationMix.__left_local_keys__ = apply_col_attrs(left_pri_key_cols, left_id_colprefix)
+    AssociationMix.__right_local_keys__ = apply_col_attrs(right_pri_key_cols, right_id_colprefix)
+
+    return AssociationMix
+'''
+
+class UniqueMix(object):
+    """
+    author: Michael Bayer
+    src: https://bitbucket.org/zzzeek/sqlalchemy/wiki/UsageRecipes/UniqueObject
+    """
+    @classmethod
+    def unique_hash(cls, *arg, **kw):
+        raise NotImplementedError()
+
+    @classmethod
+    def unique_filter(cls, query, *arg, **kw):
+        raise NotImplementedError()
+
+    @classmethod
+    def as_unique(cls, session, *arg, **kw):
+        return apothecary.util.unique(
+                    session,
+                    cls,
+                    cls.unique_hash,
+                    cls.unique_filter,
+                    cls,
+                    arg, kw
+               )

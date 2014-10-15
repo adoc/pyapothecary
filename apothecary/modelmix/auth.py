@@ -1,61 +1,41 @@
-"""
+"""Authentication Model Mixins.
 """
 import math
 import base64
 import sqlalchemy.ext.hybrid
-import cryptu.hash
-import cryptu.random
+import sqlalchemy.ext.declarative
+
 import apothecary.modelmix
-
-__all__ = ("user_mix",)
-
-
-if hasattr(base64, 'b85encode'):
-    b85encode = base64.b85encode
-    b85decode = base64.b85decode
-else:
-    from ascii85 import b85encode, b85decode
+import apothecary.util
 
 
-def _hashfunc(*args):
-    return cryptu.hash.shash(*args).digest()
+__all__ = ("user_mix", "group_mix", "permission_mix")
 
-_hashfunc.digest_length = 64 # SHA512 length
-
-
-class _bencfunc(object):
-
-    @classmethod
-    def encode(self, value):
-        return b85encode(value)
-
-    @classmethod
-    def decode(self, value):
-        return b85decode(value)
-
-    overhead = 1.25 # Base85 overhead.
+try:
+    _basestring = basestring
+except NameError:
+    _basestring = str
 
 
-def user_mix(name_col="name", name_size=32,
-         namehash_col="namehash",
-         passhash_col="passhash",
+def user_mix(name_attr="name", name_col=None, name_size=32, index_name=False,
+         namehash_attr="namehash", namehash_col=None,
+         passhash_attr="passhash", passhash_col=None,
          salt_col="salt", salt_size=8,
-         binary_encode=False, hashfunc=_hashfunc, basefunc=_bencfunc):
-    """
+         hashfunc=apothecary.util.hash,
+         binary_encode=False,
+         basefunc=apothecary.util.benc):
+    """Create a User Model Mixin.
     """
     assert callable(hashfunc), "`hashfunc` must be callable."
     assert callable(basefunc), "`basefunc` must be callable."
 
-    internal_name_col = ''.join(['__', name_col])
-    internal_namehash_col = ''.join(['__', namehash_col])
-    internal_passhash_col = ''.join(['__', passhash_col])
-    internal_salt_col = ''.join(['__', salt_col])
+    name_col = name_col or name_attr
+    namehash_col = namehash_col or namehash_attr
+    passhash_col = passhash_col or passhash_attr
 
     hash_size = hashfunc.digest_length
-    hash_benc_size = math.ceil(hash_size *
-                                (basefunc.overhead+1))
-    salt_benc_size = math.ceil(salt_size *
-                                (basefunc.overhead+1))
+    hash_benc_size = basefunc.overhead(hash_size)
+    salt_benc_size = basefunc.overhead(salt_size)
 
     def encode(value):
         if binary_encode is True and value:
@@ -67,83 +47,214 @@ def user_mix(name_col="name", name_size=32,
             return basefunc.decode(value)
         return value
 
-    class User(object):
+    class UserMix(object):
+        """User Model Mixin.
         """
-        """
-        @sqlalchemy.ext.hybrid.hybrid_property
+        # Create columns
+        __name = sqlalchemy.Column(name_col,
+                    sqlalchemy.types.Unicode(length=name_size),
+                    index=index_name is True, nullable=False)
+
+        if binary_encode is True:
+            __namehash = sqlalchemy.Column(namehash_col,
+                            sqlalchemy.types.String(hash_benc_size),
+                            index=True, unique=True)
+            __passhash = sqlalchemy.Column(passhash_col,
+                            sqlalchemy.types.String(hash_benc_size))
+            __salt = sqlalchemy.Column(salt_col,
+                            sqlalchemy.types.String(salt_benc_size))
+        else:
+            __namehash = sqlalchemy.Column(namehash_col,
+                            sqlalchemy.types.LargeBinary(hash_size),
+                            index=True, unique=True)
+            __passhash = sqlalchemy.Column(passhash_col,
+                            sqlalchemy.types.LargeBinary(hash_size))
+            __salt = sqlalchemy.Column(salt_col,
+                            sqlalchemy.types.LargeBinary(salt_size))
+
+        @property
         def _name(self):
-            return getattr(self, internal_name_col)
+            return self.__name
 
         @_name.setter
         def _name(self, value):
             """Set name and namehash."""
-            assert isinstance(value, basestring), "`value` must be a string."
+            assert isinstance(value, _basestring), "`value` must be a string."
             assert value, "`value` cannot be empty."
-            setattr(self, internal_name_col, value)
-            setattr(self, internal_namehash_col, encode(hashfunc(value)))
+            self.__namehash = encode(hashfunc(value.encode()))
+            self.__name = value
 
         @property
         def _salt(self):
-            """Get salt if exists otherwise, create salt."""
-            _salt = decode(getattr(self, internal_salt_col))
+            """Get salt if exists otherwise, generate salt."""
+            _salt = decode(self.__salt)
             if not _salt:
-                _salt = cryptu.random.read(salt_size)
-                setattr(self, internal_salt_col, encode(_salt))
+                _salt = apothecary.util.random.read(salt_size)
+                self.__salt = encode(_salt)
             return _salt
 
-        @sqlalchemy.ext.hybrid.hybrid_property
+        @property
         def _passhash(self):
-            return decode(getattr(self, internal_passhash_col))
+            return decode(self.__passhash)
 
         @_passhash.setter
-        def _passhash(self, password):
-            setattr(self, internal_passhash_col,
-                    encode(hashfunc(password, self._salt)))
+        def _passhash(self, value):
+            raise AttributeError("Cannot set a password hash. Set `password`.")
 
         @property
-        def _password(self):
-            raise AttributeError("Cannot get a password.")
+        def password(self):
+            raise AttributeError("Cannot get a password. Get `passhash`.")
 
-        @_password.setter
-        def _password(self, password):
-            # Alias to _passhash setter.
-            self._passhash = password
+        @password.setter
+        def password(self, value):
+            self.__passhash = encode(hashfunc(value.encode(), self._salt))
 
-        def _challenge(self, password):
-            challenge_hash = hashfunc(password, self._salt)
-            # Always comparing binary hashes here.
+        def challenge(self, password):
+            challenge_hash = hashfunc(password.encode(), self._salt)
+            # Always comparing bytes hashes here.
             return challenge_hash == self._passhash
 
-    # Create columns
-    setattr(User, internal_name_col,
-        sqlalchemy.Column(name_col,
-            sqlalchemy.types.Unicode(length=name_size),
-            unique=True))
+    setattr(UserMix, name_attr, apothecary.util.synonym('_name'))
+    setattr(UserMix, namehash_attr, apothecary.util.synonym('_namehash'))
+    setattr(UserMix, passhash_attr, apothecary.util.synonym('_passhash'))
 
-    if binary_encode is True:
-        setattr(User, internal_namehash_col,
-            sqlalchemy.Column(namehash_col,
-                sqlalchemy.types.String(hash_benc_size),
-                index=True))
-        setattr(User, internal_passhash_col,
-            sqlalchemy.Column(passhash_col,
-                sqlalchemy.types.String(hash_benc_size)))
-        setattr(User, internal_salt_col,
-            sqlalchemy.Column(salt_col,
-                sqlalchemy.types.String(salt_benc_size)))
-    else:
-        setattr(User, internal_namehash_col,
-            sqlalchemy.Column(namehash_col,
-                sqlalchemy.types.LargeBinary(hash_size),
-                index=True))
-        setattr(User, internal_passhash_col,
-            sqlalchemy.Column(passhash_col,
-                sqlalchemy.types.LargeBinary(hash_size)))
-        setattr(User, internal_salt_col,
-            sqlalchemy.Column(salt_col,
-                sqlalchemy.types.LargeBinary(salt_size)))
-
-    return User
+    return UserMix
 
 
+def group_mix(name_attr="name", name_col=None, name_size=32,
+              level_attr="level", level_col=None):
+    """Create a Group Model Mixin.
+    """
+    name_col = name_col or name_attr
+    level_col = level_col or level_attr
 
+    class GroupMix(object):
+        """Group Model Mixin.
+        """
+        __name = sqlalchemy.Column(name_col,
+                          sqlalchemy.types.Unicode(name_size),
+                          nullable=False, unique=True)
+
+        __level = sqlalchemy.Column(level_col,
+                          sqlalchemy.types.Integer(),
+                          nullable=False, default=-1)
+
+        @property
+        def _name(self):
+            return self.__name
+
+        @_name.setter
+        def _name(self, value):
+            assert isinstance(value, _basestring), "`name` must be a string."
+            self.__name = value
+
+        @property
+        def _level(self):
+            return self.__level
+
+        @_level.setter
+        def _level(self, value):
+            assert isinstance(value, int), '`level` must be an integer.'
+            self.__level = value
+
+        # Comparators
+        def __lt__(self, other):
+            return self._level < other._level
+
+        def __gt__(self, other):
+            return self._level > other._level
+
+        def __eq__(self, other):
+            return self._level == other._level
+
+        def __le__(self, other):
+            return self._level <= other._level
+
+        def __ge__(self, other):
+            return self._level >= other._level
+
+        def __ne__(self, other):
+            return self._level != other._level
+
+    setattr(GroupMix, name_attr, apothecary.util.synonym("_name"))
+    setattr(GroupMix, level_attr, apothecary.util.synonym("_level"))
+
+    return GroupMix
+
+
+def user_group_mix(user_cls, group_cls):
+    """Create a User<->Group Association. (Many-to-many).
+    """
+    pass
+
+
+def permission_mix(name_attr="name", name_col=None, name_size=32):
+    """Create a Permission Model Mixin.
+    """
+    name_col = name_col or name_attr
+
+    class Permission(object):
+        """Permission Model Mixin.
+        """
+        __name = sqlalchemy.Column(name_col,
+                sqlalchemy.types.Unicode(name_size),
+                nullable=False, unique=True)
+
+        @property
+        def _name(self):
+            return self.__name
+
+        @_name.setter
+        def _name(self, value):
+            assert isinstance(value, _basestring), "`name` must be a string."
+            self.__name = value
+
+    setattr(Permission, name_attr, apothecary.util.synonym('_name'))
+
+    return Permission
+
+
+def group_permission_mix(group_cls, permission_cls,
+                         group_id_colname="group_id",
+                         permission_id_colname="permission_id",
+                         permissions_attr="permissions",
+                         init_group_relationship=False):
+    """Create a Group<->Permission Association. (Many-to-many).
+    """
+    # This can be abstracted further in to a "general" association func/class.
+    group_pri_key_columns = group_cls.__table__.primary_key.columns.items()
+    perm_pri_key_columns = permission_cls.__table__.primary_key.columns.items()
+
+    # Temporary to disallow models with multiple pri-key columns.
+    assert len(group_pri_key_columns) == 1, "group_permission_mix has no support for multiple primary key columns yet."
+    assert len(perm_pri_key_columns) == 1, "group_permission_mix has no support for multiple primary key columns yet."
+    parent_group_id_col = group_pri_key_columns[0][1]
+    parent_permission_id_col =  perm_pri_key_columns[0][1]
+
+    class GroupPermission(object):
+        """Group<->Permission Association.
+        """
+        __group_id = sqlalchemy.ext.declarative.declared_attr(lambda cls:
+                        sqlalchemy.Column(group_id_colname,
+                            parent_group_id_col.type,
+                            sqlalchemy.ForeignKey(parent_group_id_col)))
+        __permission_id = sqlalchemy.ext.declarative.declared_attr(lambda cls:
+                        sqlalchemy.Column(permission_id_colname,
+                            parent_permission_id_col.type,
+                            sqlalchemy.ForeignKey(parent_permission_id_col)))
+
+        @classmethod
+        def init_group_relationship(cls, **kwa):
+            """Enable the relationship on the Group model.
+            """
+            # This seems the most convenient place to put this.
+
+            kwa['secondary'] = cls.__table__
+            setattr(group_cls, permissions_attr,
+                    sqlalchemy.orm.relationship(permission_cls, **kwa))
+
+    return GroupPermission
+
+
+def user_permission_mix(user_cls, permission_cls):
+    pass

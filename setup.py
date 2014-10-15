@@ -9,11 +9,11 @@ with open(os.path.join(here, 'CHANGES.txt')) as f:
     CHANGES = f.read()
 
 requires = [
-    'SQLAlchemy>=0.9,<=0.9.999'
+    # 'SQLAlchemy>=0.9,<=0.9.999'
     ]
 
 setup(name='apothecary',
-      version='0.1',
+      version='0.2',
       description='SQLAlchemy helpers, base classes, etc.',
       long_description=README + '\n\n' + CHANGES,
       classifiers=[
