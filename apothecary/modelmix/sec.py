@@ -93,8 +93,8 @@ def record_token_mix(attr_name, col_name=None, length=6, onupdate=False,
     return RecordTokenMix
 
 
-def url_token_mix(created_col='token_created', created_token_size=6,
-                  updated_token='token_updated', updated_token_size=6,
+def url_token_mix(created_col='token_created', created_token_size=8,
+                  updated_token='token_updated', updated_token_size=8,
                   hashfunc=apothecary.util.hash):
     """
     """
