@@ -130,7 +130,10 @@ except ImportError:
             for i in range(int(math.ceil(length/32.0))):
                 rnd = os.urandom(length*8) # for attempted entropy.
                 yield hashlib.sha256(rnd).digest()
-        return ''.join(gen())[:length]
+        if __py3__:
+            return bytes().join(gen())[:length]
+        else:
+            return ''.join(gen())[:length]
 
     def random():
         pass
